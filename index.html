@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Daily Word</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="page">
+      <header>
+        <p class="eyebrow">A small daily ritual</p>
+        <h1>Daily Word</h1>
+        <p id="subtitle">Loading today’s puzzle…</p>
+      </header>
+
+      <section id="name-card" class="card">
+        <h2>Before you start</h2>
+        <p>Choose the name that will appear in the group results.</p>
+        <form id="name-form">
+          <label for="player-name">Your name</label>
+          <div class="inline-form">
+            <input id="player-name" maxlength="24" autocomplete="name" required />
+            <button type="submit">Play</button>
+          </div>
+        </form>
+      </section>
+
+      <section id="game-card" class="card hidden" aria-live="polite">
+        <div id="board" class="board" aria-label="Word puzzle board"></div>
+        <form id="guess-form" class="guess-form">
+          <label for="guess">Your guess</label>
+          <div class="inline-form">
+            <input id="guess" maxlength="5" minlength="5" autocapitalize="characters" autocomplete="off" spellcheck="false" required />
+            <button id="guess-button" type="submit">Guess</button>
+          </div>
+        </form>
+        <p id="message" class="message"></p>
+        <div class="legend">
+          <span><i class="correct"></i> right spot</span>
+          <span><i class="present"></i> in the word</span>
+          <span><i class="absent"></i> not in the word</span>
+        </div>
+      </section>
+
+      <section id="results-card" class="card hidden">
+        <p class="eyebrow">Today’s results</p>
+        <h2 id="result-heading"></h2>
+        <p id="result-copy"></p>
+        <div id="stats" class="stats"></div>
+        <button id="play-again" class="secondary">View the board</button>
+      </section>
+    </main>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>
