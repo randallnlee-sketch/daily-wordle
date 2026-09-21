@@ -16,6 +16,19 @@ function drawBoard(rows = []) {
     return `<div class="row">${Array.from({ length: 5 }, (_, col) => `<span class="tile ${feedback[col] || ""}">${guess[col] || ""}</span>`).join("")}</div>`;
   }).join("");
 }
+function drawLetterStatus(rows = []) {
+  const rank = { absent: 1, present: 2, correct: 3 };
+  const letters = new Map();
+  rows.forEach(({ guess, feedback }) => [...guess].forEach((letter, index) => {
+    const state = feedback[index];
+    if (!letters.has(letter) || rank[state] > rank[letters.get(letter)]) letters.set(letter, state);
+  }));
+  const alphabet = "abcdefghijklmnopqrstuvwxyz";
+  $("#used-letters").innerHTML = letters.size
+    ? [...letters].sort().map(([letter, state]) => `<i class="letter ${state}">${letter.toUpperCase()}</i>`).join("")
+    : "—";
+  $("#remaining-letters").textContent = [...alphabet].filter((letter) => !letters.has(letter)).map((letter) => letter.toUpperCase()).join(" ") || "—";
+}
 function showMessage(text, error = false) { const el = $("#message"); el.textContent = text; el.classList.toggle("error", error); }
 
 async function loadPuzzle() {
@@ -23,7 +36,7 @@ async function loadPuzzle() {
   if (error || !data?.[0]) { $("#subtitle").textContent = "No puzzle has been published yet. Check back soon."; return; }
   puzzle = data[0];
   $("#subtitle").textContent = new Date(`${puzzle.puzzle_date}T12:00:00`).toLocaleDateString(undefined, { weekday:"long", month:"long", day:"numeric" });
-  drawBoard();
+  drawBoard(); drawLetterStatus();
   if (playerName) { $("#player-name").value = playerName; startGame(); }
 }
 function startGame() { $("#name-card").classList.add("hidden"); $("#game-card").classList.remove("hidden"); $("#guess").focus(); }
@@ -37,7 +50,7 @@ $("#guess-form").addEventListener("submit", async (event) => {
   const { data, error } = await supabase.rpc("submit_guess", { p_puzzle_id:puzzle.id, p_player_id:playerId, p_player_name:playerName, p_guess:guess });
   $("#guess-button").disabled = false;
   if (error || !data?.[0]) return showMessage(error?.message || "That didn’t work. Please try again.", true);
-  const result = data[0]; drawBoard(result.rows); $("#guess").value = "";
+  const result = data[0]; drawBoard(result.rows); drawLetterStatus(result.rows); $("#guess").value = "";
   if (result.state === "playing") { showMessage(`${6 - result.guess_count} guesses remaining.`); $("#guess").focus(); return; }
   $("#guess-form").classList.add("hidden"); showMessage(""); showResults(result);
 });

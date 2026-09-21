@@ -101,5 +101,10 @@ grant execute on function public.get_today_puzzle() to anon;
 grant execute on function public.submit_guess(uuid, uuid, text, text) to anon;
 grant execute on function public.get_puzzle_stats(uuid) to anon;
 
+-- The game changes at midnight Pacific time, rather than midnight UTC.
+alter function public.get_today_puzzle() set timezone to 'America/Los_Angeles';
+alter function public.submit_guess(uuid, uuid, text, text) set timezone to 'America/Los_Angeles';
+
 -- Add a new word each day (or schedule it ahead) with a line like this:
--- insert into public.puzzles (puzzle_date, answer) values ('2026-09-21', 'crane');
+-- insert into public.puzzles (puzzle_date, answer)
+-- values ((now() at time zone 'America/Los_Angeles')::date, 'crane');
