@@ -1,58 +1,72 @@
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
-const supabaseUrl = "https://pguyhknljcrnwoidhlzp.supabase.co";
-const supabaseKey = "sb_publishable_hi_rSiAXwQqOqhaXsryUHw_pMu5f35I";
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabase = createClient("https://pguyhknljcrnwoidhlzp.supabase.co", "sb_publishable_hi_rSiAXwQqOqhaXsryUHw_pMu5f35I");
 const $ = (selector) => document.querySelector(selector);
+const keyboardRows = ["qwertyuiop", "asdfghjkl", "zxcvbnm"];
 let puzzle;
 let playerId = localStorage.playerId || crypto.randomUUID();
 let playerName = localStorage.playerName || "";
+let currentRows = [];
+let activeGuess = "";
 localStorage.playerId = playerId;
 
-function drawBoard(rows = []) {
+function letterStates(rows = []) {
+  const rank = { absent: 1, present: 2, correct: 3 };
+  const states = new Map();
+  rows.forEach(({ guess, feedback }) => [...guess].forEach((letter, index) => {
+    const state = feedback[index];
+    if (!states.has(letter) || rank[state] > rank[states.get(letter)]) states.set(letter, state);
+  }));
+  return states;
+}
+function drawBoard() {
   $("#board").innerHTML = Array.from({ length: 6 }, (_, row) => {
-    const guess = rows[row]?.guess || "";
-    const feedback = rows[row]?.feedback || [];
+    const guess = currentRows[row]?.guess || (row === currentRows.length ? activeGuess : "");
+    const feedback = currentRows[row]?.feedback || [];
     return `<div class="row">${Array.from({ length: 5 }, (_, col) => `<span class="tile ${feedback[col] || ""}">${guess[col] || ""}</span>`).join("")}</div>`;
   }).join("");
 }
-function drawLetterStatus(rows = []) {
-  const rank = { absent: 1, present: 2, correct: 3 };
-  const letters = new Map();
-  rows.forEach(({ guess, feedback }) => [...guess].forEach((letter, index) => {
-    const state = feedback[index];
-    if (!letters.has(letter) || rank[state] > rank[letters.get(letter)]) letters.set(letter, state);
-  }));
-  const alphabet = "abcdefghijklmnopqrstuvwxyz";
-  $("#used-letters").innerHTML = letters.size
-    ? [...letters].sort().map(([letter, state]) => `<i class="letter ${state}">${letter.toUpperCase()}</i>`).join("")
-    : "—";
-  $("#remaining-letters").textContent = [...alphabet].filter((letter) => !letters.has(letter)).map((letter) => letter.toUpperCase()).join(" ") || "—";
+function drawKeyboard() {
+  const states = letterStates(currentRows);
+  const row = (letters) => [...letters].map((letter) => `<button type="button" class="key ${states.get(letter) || ""}" data-key="${letter}" aria-label="${letter.toUpperCase()}">${letter}</button>`).join("");
+  $("#game-keyboard").innerHTML = `<div class="key-row">${row(keyboardRows[0])}</div><div class="key-row">${row(keyboardRows[1])}</div><div class="key-row"><button type="button" class="key action" data-key="enter">Enter</button>${row(keyboardRows[2])}<button type="button" class="key action" data-key="backspace" aria-label="Delete last letter">⌫</button></div>`;
 }
+function redraw() { drawBoard(); drawKeyboard(); }
 function showMessage(text, error = false) { const el = $("#message"); el.textContent = text; el.classList.toggle("error", error); }
+function setKeyboardDisabled(disabled) { document.querySelectorAll("#game-keyboard button").forEach((button) => { button.disabled = disabled; }); }
 
 async function loadPuzzle() {
   const { data, error } = await supabase.rpc("get_today_puzzle");
   if (error || !data?.[0]) { $("#subtitle").textContent = "No puzzle has been published yet. Check back soon."; return; }
   puzzle = data[0];
   $("#subtitle").textContent = new Date(`${puzzle.puzzle_date}T12:00:00`).toLocaleDateString(undefined, { weekday:"long", month:"long", day:"numeric" });
-  drawBoard(); drawLetterStatus();
+  redraw();
   if (playerName) { $("#player-name").value = playerName; startGame(); }
 }
-function startGame() { $("#name-card").classList.add("hidden"); $("#game-card").classList.remove("hidden"); $("#guess").focus(); }
+function startGame() { $("#name-card").classList.add("hidden"); $("#game-card").classList.remove("hidden"); }
+async function submitGuess() {
+  if (activeGuess.length !== 5) return showMessage("Enter five letters first.", true);
+  setKeyboardDisabled(true); showMessage("");
+  const { data, error } = await supabase.rpc("submit_guess", { p_puzzle_id:puzzle.id, p_player_id:playerId, p_player_name:playerName, p_guess:activeGuess });
+  setKeyboardDisabled(false);
+  if (error || !data?.[0]) return showMessage(error?.message || "That didn’t work. Please try again.", true);
+  const result = data[0]; currentRows = result.rows; activeGuess = ""; redraw();
+  if (result.state === "playing") return showMessage(`${6 - result.guess_count} guesses remaining.`);
+  $("#game-keyboard").classList.add("hidden"); $(".keyboard-note").classList.add("hidden"); showMessage(""); showResults(result);
+}
+function useKey(key) {
+  if (key === "enter") return submitGuess();
+  if (key === "backspace") { activeGuess = activeGuess.slice(0, -1); showMessage(""); return drawBoard(); }
+  if (activeGuess.length < 5) { activeGuess += key; showMessage(""); drawBoard(); }
+}
 
 $("#name-form").addEventListener("submit", (event) => { event.preventDefault(); playerName = $("#player-name").value.trim(); if (!playerName) return; localStorage.playerName = playerName; startGame(); });
-$("#guess-form").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const guess = $("#guess").value.trim().toLowerCase();
-  if (!/^[a-z]{5}$/.test(guess)) return showMessage("Please enter a five-letter word.", true);
-  $("#guess-button").disabled = true; showMessage("");
-  const { data, error } = await supabase.rpc("submit_guess", { p_puzzle_id:puzzle.id, p_player_id:playerId, p_player_name:playerName, p_guess:guess });
-  $("#guess-button").disabled = false;
-  if (error || !data?.[0]) return showMessage(error?.message || "That didn’t work. Please try again.", true);
-  const result = data[0]; drawBoard(result.rows); drawLetterStatus(result.rows); $("#guess").value = "";
-  if (result.state === "playing") { showMessage(`${6 - result.guess_count} guesses remaining.`); $("#guess").focus(); return; }
-  $("#guess-form").classList.add("hidden"); showMessage(""); showResults(result);
+$("#game-keyboard").addEventListener("click", (event) => { const key = event.target.closest("button")?.dataset.key; if (key) useKey(key); });
+document.addEventListener("keydown", (event) => {
+  if ($("#game-card").classList.contains("hidden") || event.metaKey || event.ctrlKey || event.altKey) return;
+  if (/^[a-zA-Z]$/.test(event.key)) useKey(event.key.toLowerCase());
+  else if (event.key === "Backspace") useKey("backspace");
+  else if (event.key === "Enter") useKey("enter");
 });
 async function showResults(result) {
   $("#results-card").classList.remove("hidden");

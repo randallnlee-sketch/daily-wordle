@@ -28,23 +28,9 @@
 
       <section id="game-card" class="card hidden" aria-live="polite">
         <div id="board" class="board" aria-label="Word puzzle board"></div>
-        <form id="guess-form" class="guess-form">
-          <label for="guess">Your guess</label>
-          <div class="inline-form">
-            <input id="guess" maxlength="5" minlength="5" autocapitalize="characters" autocomplete="off" spellcheck="false" required />
-            <button id="guess-button" type="submit">Guess</button>
-          </div>
-        </form>
         <p id="message" class="message"></p>
-        <div class="legend">
-          <span><i class="correct"></i> right spot</span>
-          <span><i class="present"></i> in the word</span>
-          <span><i class="absent"></i> not in the word</span>
-        </div>
-        <section class="letter-status" aria-label="Letters used in your guesses">
-          <div><strong>Used</strong><span id="used-letters">—</span></div>
-          <div><strong>Remaining</strong><span id="remaining-letters">A B C D E F G H I J K L M N O P Q R S T U V W X Y Z</span></div>
-        </section>
+        <div id="game-keyboard" class="game-keyboard" aria-label="Word puzzle keyboard"></div>
+        <p class="keyboard-note">Uncolored letters have not been used yet.</p>
       </section>
 
       <section id="results-card" class="card hidden">
