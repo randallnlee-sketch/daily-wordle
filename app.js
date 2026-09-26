@@ -3,11 +3,11 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 const supabase = createClient("https://pguyhknljcrnwoidhlzp.supabase.co", "sb_publishable_hi_rSiAXwQqOqhaXsryUHw_pMu5f35I");
 const $ = (selector) => document.querySelector(selector);
 const keyboardRows = ["qwertyuiop", "asdfghjkl", "zxcvbnm"];
+const playerId = localStorage.playerId || crypto.randomUUID();
 let puzzle;
-let playerId = localStorage.playerId || crypto.randomUUID();
-let playerName = localStorage.playerName || "";
 let currentRows = [];
 let activeGuess = "";
+let availablePuzzles = [];
 localStorage.playerId = playerId;
 
 function letterStates(rows = []) {
@@ -28,30 +28,51 @@ function drawBoard() {
 }
 function drawKeyboard() {
   const states = letterStates(currentRows);
-  const row = (letters) => [...letters].map((letter) => `<button type="button" class="key ${states.get(letter) || ""}" data-key="${letter}" aria-label="${letter.toUpperCase()}">${letter}</button>`).join("");
+  const row = (letters) => [...letters].map((letter) => `<button type="button" class="key ${states.get(letter) || ""}" data-key="${letter}">${letter}</button>`).join("");
   $("#game-keyboard").innerHTML = `<div class="key-row">${row(keyboardRows[0])}</div><div class="key-row">${row(keyboardRows[1])}</div><div class="key-row"><button type="button" class="key action" data-key="enter">Enter</button>${row(keyboardRows[2])}<button type="button" class="key action" data-key="backspace" aria-label="Delete last letter">⌫</button></div>`;
 }
 function redraw() { drawBoard(); drawKeyboard(); }
 function showMessage(text, error = false) { const el = $("#message"); el.textContent = text; el.classList.toggle("error", error); }
 function setKeyboardDisabled(disabled) { document.querySelectorAll("#game-keyboard button").forEach((button) => { button.disabled = disabled; }); }
+function localDate(date) { return new Date(`${date}T12:00:00`).toLocaleDateString(undefined, { weekday:"long", month:"long", day:"numeric" }); }
 
-async function loadPuzzle() {
+async function loadAvailablePuzzles() {
+  const { data } = await supabase.rpc("get_available_puzzles");
+  availablePuzzles = data || [];
+  const latest = availablePuzzles.at(-1)?.puzzle_date;
+  if (latest) $("#puzzle-date").max = latest;
+}
+async function activatePuzzle(nextPuzzle) {
+  puzzle = nextPuzzle; currentRows = []; activeGuess = "";
+  $("#subtitle").textContent = localDate(puzzle.puzzle_date);
+  $("#results-card").classList.add("hidden"); $("#game-keyboard").classList.remove("hidden"); $(".keyboard-note").classList.remove("hidden"); showMessage(""); redraw();
+  const { data } = await supabase.rpc("get_player_game", { p_puzzle_id:puzzle.id, p_player_id:playerId });
+  const savedGame = data?.[0];
+  if (!savedGame) return;
+  currentRows = savedGame.rows || []; redraw();
+  if (savedGame.state !== "playing") finishGame(savedGame);
+}
+async function loadToday() {
   const { data, error } = await supabase.rpc("get_today_puzzle");
   if (error || !data?.[0]) { $("#subtitle").textContent = "No puzzle has been published yet. Check back soon."; return; }
-  puzzle = data[0];
-  $("#subtitle").textContent = new Date(`${puzzle.puzzle_date}T12:00:00`).toLocaleDateString(undefined, { weekday:"long", month:"long", day:"numeric" });
-  redraw();
-  if (playerName) { $("#player-name").value = playerName; startGame(); }
+  activatePuzzle(data[0]);
 }
-function startGame() { $("#name-card").classList.add("hidden"); $("#game-card").classList.remove("hidden"); }
+async function loadDate(date) {
+  const { data, error } = await supabase.rpc("get_puzzle_for_date", { p_date:date });
+  if (error || !data?.[0]) return showMessage("That puzzle is unavailable. Future dates stay locked.", true);
+  $("#archive-panel").classList.add("hidden"); activatePuzzle(data[0]);
+}
 async function submitGuess() {
   if (activeGuess.length !== 5) return showMessage("Enter five letters first.", true);
   setKeyboardDisabled(true); showMessage("");
-  const { data, error } = await supabase.rpc("submit_guess", { p_puzzle_id:puzzle.id, p_player_id:playerId, p_player_name:playerName, p_guess:activeGuess });
+  const { data, error } = await supabase.rpc("submit_guess", { p_puzzle_id:puzzle.id, p_player_id:playerId, p_player_name:"Player", p_guess:activeGuess });
   setKeyboardDisabled(false);
   if (error || !data?.[0]) return showMessage(error?.message || "That didn’t work. Please try again.", true);
   const result = data[0]; currentRows = result.rows; activeGuess = ""; redraw();
   if (result.state === "playing") return showMessage(`${6 - result.guess_count} guesses remaining.`);
+  finishGame(result);
+}
+function finishGame(result) {
   $("#game-keyboard").classList.add("hidden"); $(".keyboard-note").classList.add("hidden"); showMessage(""); showResults(result);
 }
 function useKey(key) {
@@ -59,15 +80,16 @@ function useKey(key) {
   if (key === "backspace") { activeGuess = activeGuess.slice(0, -1); showMessage(""); return drawBoard(); }
   if (activeGuess.length < 5) { activeGuess += key; showMessage(""); drawBoard(); }
 }
-
-$("#name-form").addEventListener("submit", (event) => { event.preventDefault(); playerName = $("#player-name").value.trim(); if (!playerName) return; localStorage.playerName = playerName; startGame(); });
 $("#game-keyboard").addEventListener("click", (event) => { const key = event.target.closest("button")?.dataset.key; if (key) useKey(key); });
 document.addEventListener("keydown", (event) => {
-  if ($("#game-card").classList.contains("hidden") || event.metaKey || event.ctrlKey || event.altKey) return;
+  if ($("#game-keyboard").classList.contains("hidden") || event.metaKey || event.ctrlKey || event.altKey) return;
   if (/^[a-zA-Z]$/.test(event.key)) useKey(event.key.toLowerCase());
   else if (event.key === "Backspace") useKey("backspace");
   else if (event.key === "Enter") useKey("enter");
 });
+$("#archive-toggle").addEventListener("click", () => $("#archive-panel").classList.toggle("hidden"));
+$("#date-button").addEventListener("click", () => { const date = $("#puzzle-date").value; if (date) loadDate(date); });
+$("#random-button").addEventListener("click", () => { if (availablePuzzles.length) loadDate(availablePuzzles[Math.floor(Math.random() * availablePuzzles.length)].puzzle_date); });
 async function showResults(result) {
   $("#results-card").classList.remove("hidden");
   $("#result-heading").textContent = result.state === "won" ? "You got it!" : `The word was ${result.answer.toUpperCase()}.`;
@@ -76,4 +98,5 @@ async function showResults(result) {
   $("#stats").innerHTML = [[stats.players || 0,"players"],[stats.solved || 0,"solved"],[stats.average_guesses || "—","avg. guesses"]].map(([value,label]) => `<div class="stat"><b>${value}</b><span>${label}</span></div>`).join("");
 }
 $("#play-again").addEventListener("click", () => $("#game-card").scrollIntoView({ behavior:"smooth" }));
-loadPuzzle();
+loadAvailablePuzzles();
+loadToday();

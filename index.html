@@ -12,21 +12,19 @@
         <p class="eyebrow">A small daily ritual</p>
         <h1>Randy’s Daily Wordle</h1>
         <p id="subtitle">Loading today’s puzzle…</p>
+        <button id="archive-toggle" class="secondary archive-toggle" type="button">Play another day</button>
       </header>
 
-      <section id="name-card" class="card">
-        <h2>Before you start</h2>
-        <p>Choose the name that will appear in the group results.</p>
-        <form id="name-form">
-          <label for="player-name">Your name</label>
-          <div class="inline-form">
-            <input id="player-name" maxlength="24" autocomplete="name" required />
-            <button type="submit">Play</button>
-          </div>
-        </form>
+      <section id="archive-panel" class="archive-panel hidden">
+        <label for="puzzle-date">Choose a previous day</label>
+        <div class="archive-actions">
+          <input id="puzzle-date" type="date" />
+          <button id="date-button" type="button">Play date</button>
+          <button id="random-button" class="secondary" type="button">Random day</button>
+        </div>
       </section>
 
-      <section id="game-card" class="card hidden" aria-live="polite">
+      <section id="game-card" class="card" aria-live="polite">
         <div id="board" class="board" aria-label="Word puzzle board"></div>
         <p id="message" class="message"></p>
         <div id="game-keyboard" class="game-keyboard" aria-label="Word puzzle keyboard"></div>

@@ -9,6 +9,7 @@ p { line-height:1.5; }
 .eyebrow { margin:0; color:#69756c; font-family:Arial,sans-serif; font-size:.72rem; font-weight:bold; letter-spacing:.14em; text-transform:uppercase; }
 .card { margin-top:18px; padding:28px; border:1px solid var(--line); border-radius:18px; background:rgba(255,255,255,.72); box-shadow:0 14px 36px rgba(58,65,48,.08); }
 .hidden { display:none; }
+.archive-toggle { margin-top:10px; padding:9px 12px; font-size:.78rem; }.archive-panel { margin:0 auto 12px; padding:14px; border:1px solid var(--line); border-radius:12px; background:rgba(255,255,255,.72); }.archive-actions { display:flex; gap:7px; }.archive-actions input { padding:9px 10px; }.archive-actions button { padding:0 12px; white-space:nowrap; }
 label { display:block; margin-bottom:7px; font:700 .8rem Arial,sans-serif; letter-spacing:.04em; }
 .inline-form { display:flex; gap:9px; }
 input { width:100%; min-width:0; padding:13px 14px; border:1px solid #cfc8ba; border-radius:9px; color:var(--ink); background:#fffefa; font:600 1rem Arial,sans-serif; text-transform:uppercase; }
@@ -31,6 +32,7 @@ button:disabled { cursor:wait; opacity:.55; }
   h1 { margin:0 0 3px; font-size:clamp(1.9rem,9vw,2.45rem); letter-spacing:-.06em; }
   header > p:last-child { margin:0; font-size:.86rem; }
   .card { margin-top:10px; padding:14px; border-radius:14px; }
+  .archive-panel { padding:10px; margin-bottom:8px; }.archive-panel label { font-size:.68rem; }.archive-actions { gap:5px; }.archive-actions input { padding:7px; font-size:.8rem; }.archive-actions button { padding:0 7px; font-size:.67rem; }
   .board { width:min(100%, 286px); gap:5px; margin-bottom:13px; }
   .row { gap:5px; }
   .tile { border-radius:5px; font-size:1.2rem; }
